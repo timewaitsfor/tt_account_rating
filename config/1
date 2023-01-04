@@ -1,0 +1,8 @@
+    this_author_time_name = "tt_author_dict1201_" + str(increment_time) + ".pkl"
+    this_content_time_name = "tt_content_dict1201_" + str(increment_time) + ".pkl"
+
+    this_content_pp_time_name = "tt_content_pp_dict1201_" + str(increment_time) + ".pkl"
+    this_content_pp_cluster_time_name = "tt_content_pp_cluster_dict1201_" + str(increment_time) + ".pkl"
+    this_content_pp_cl_kw_time_name = "tt_content_pp_cl_kw_dict1201_" + str(increment_time) + ".pkl"
+
+    this_author_content_time_name = "tt_author_content_dict1201_" + str(increment_time) + ".pkl"
