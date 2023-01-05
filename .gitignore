@@ -1,5 +1,0 @@
-data/
-.idea/
-log/
-config/
-utils/__pycache__/*.pyc
