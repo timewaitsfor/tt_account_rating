@@ -1,6 +1,8 @@
 data/
+tmp_data/
 cache_data/
 .idea/
 log/
 config/
+output/
 utils/__pycache__/*.pyc
