@@ -52,6 +52,8 @@ class tt_ywdata_content(TT_YWData_Base):
     task_id = Column(BIGINT)
     bert_score = Column(Float)
     cluster = Column(JSON)
+    kw_result = Column(Text)
+    kw_flag = Column(Integer)
 
 
 class tt_ywdata_author_analysed(TT_YWData_Base):
