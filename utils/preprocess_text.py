@@ -39,7 +39,8 @@ def preprocess_text(text, max_sentence_length=127, min_sentence_length=10, DEBUG
     if not isinstance(text, str):
         return text  # 2022-6-30
     
-    #stop_terms = ['转发微博', '王一博','神韵','报导','澳洲','酪梨','萤幕','著','温哥华','瑜珈','甘迺迪','纽芬兰','多伦多','悉尼','萤光幕','麻糬','道家功法','渥太华','墨尔本','安大略','磅士卑','福克兰','加州','政法大学','签证','魁北克','四六','澳元','加兹尼','堪察加','蕃茄','本台消息','纽约','纽西兰','奥克兰','酮','镁铝','法大','奥勒冈','茼蒿','酚','二零','零二','零四','x ','六四分','修炼','指南指南','应援','汉子婊','谢谢谢谢','加拿大','神迹','快乐警察','不开心逮捕','音韵','这么','这个','这','辽宁','裸专','紫:','籽','隔空安静','师父']
+    # stop_terms = ['转发微博', '王一博','神韵','报导','澳洲','酪梨','萤幕','著','温哥华','瑜珈','甘迺迪','纽芬兰','多伦多','悉尼','萤光幕','麻糬','道家功法','渥太华','墨尔本','安大略','磅士卑','福克兰','加州','政法大学','签证','魁北克','四六','澳元','加兹尼','堪察加','蕃茄','本台消息','纽约','纽西兰','奥克兰','酮','镁铝','法大','奥勒冈','茼蒿','酚','二零','零二','零四','x ','六四分','修炼','指南指南','应援','汉子婊','谢谢谢谢','加拿大','神迹','快乐警察','不开心逮捕','音韵','这么','这个','这','辽宁','裸专','紫:','籽','隔空安静','师父']
+    # stop_terms = ['转发微博', '王一博','神韵','报导','澳洲','酪梨','萤幕','著','温哥华','瑜珈','甘迺迪','纽芬兰','多伦多','悉尼','萤光幕','麻糬','道家功法','渥太华','墨尔本','安大略','磅士卑','福克兰','加州','政法大学','签证','魁北克','澳元','加兹尼','堪察加','蕃茄','本台消息','纽约','纽西兰','奥克兰','酮','镁铝','法大','奥勒冈','茼蒿','酚','二零','零二','零四','x ','六四分','修炼','指南指南','应援','汉子婊','谢谢谢谢','加拿大','神迹','快乐警察','不开心逮捕','音韵','这么','这个','这','辽宁','裸专','紫:','籽','隔空安静','师父']
     stop_terms = []
     txt = text.replace('\n', '')
     txt = txt.replace(',', '，')
@@ -75,9 +76,9 @@ def preprocess_text(text, max_sentence_length=127, min_sentence_length=10, DEBUG
         txt = txt.replace('‧', '')
         txt = txt.replace('•', '')
         #txt=re.sub(r'转发微博.*','',txt) # 
-        #txt=re.sub(r'[\u0800-\u4e00]','',txt)# remove japanese
+        txt=re.sub(r'[\u0800-\u4e00]','',txt)# remove japanese
         txt=re.sub(r'[a-zA-Z\s]{8,}','',txt)#remove english
-        #txt=re.sub(r'[uac00-ud7a3]','',txt)#remove korean
+        txt=re.sub(r'[\uac00-\ud7a3]','',txt)#remove korean
         txt = txt.replace('〖','【')
         txt = txt.replace('〗','】')
         txt = txt.replace('$','')
@@ -102,7 +103,7 @@ def preprocess_text(text, max_sentence_length=127, min_sentence_length=10, DEBUG
         for s in stop_terms:
             txt = txt.replace(s, '')
         txt = re.sub(r"(回复)?(//)?\s*@\S*?\s{1,10}(:|：| |$)", " ", txt)  # 去除正文中的@和回复/转发中的用户名
-        txt = re.sub(r"#\S{1,20}#", "", txt)  # 去除话题内容
+        # txt = re.sub(r"#\S{1,20}#", "", txt)  # 去除话题内容
         if txt == '' or txt == ' ':
             cleantext_list.append(ss)
             continue  # 跳过
@@ -171,10 +172,11 @@ def preprocess_text(text, max_sentence_length=127, min_sentence_length=10, DEBUG
 
 if __name__ == '__main__':
 
-    s = "p 2 p 的就是习包子共产党精心策划的专门用来掠夺人民、抢劫人民、收割人民的一场政治运动#P2P#中共#诈骗"
+    # s = "p 2 p 的就是习包子共产党精心策划的专门用来掠夺人民、抢劫人民、收割人民的一场政治运动#P2P#中共#诈骗"
+    s = "'#2014红牛HitTop街舞挑战赛#'"
 
     ss = filter_illegal_char(s)
 
-    sss = preprocess_text(ss)
+    sss = preprocess_text(ss, max_sentence_length=512, min_sentence_length=1)
 
     pass

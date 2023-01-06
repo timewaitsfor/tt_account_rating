@@ -1,8 +1,16 @@
+# 数据相关
 data/
 tmp_data/
 cache_data/
-.idea/
+output/
+
+# 配置相关
 log/
 config/
-output/
+
+# 代码相关
+previous_versions/
+
+# pycharm相关
+.idea/
 utils/__pycache__/*.pyc
