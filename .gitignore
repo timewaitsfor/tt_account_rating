@@ -1,4 +1,5 @@
 data/
+tmp_data/
 cache_data/
 .idea/
 log/

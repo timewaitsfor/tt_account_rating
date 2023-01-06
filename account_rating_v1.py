@@ -1,5 +1,5 @@
 # from config.db_tt_ywdata_config import *
-from config.db_tt_ywdata_config import *
+from config.db_tt_ywdata_config_tmp import *
 from utils.mo_utils import *
 from utils.preprocess_text import *
 from tqdm import tqdm
@@ -300,91 +300,64 @@ def read_tt_author_post_contents_increment(increment_time, off_mod=True):
         tt_author_dict = {}
         tt_content_dict = {}
         active_post_count =  0
+        with get_tt_ywdata_session() as s:
+            # res = s.query(tt_ywdata_content).filter(tt_ywdata_content.created_at > increment_time).all()
+            res = s.query(this_content_table).filter(this_content_table.tt_type == 0, this_content_table.created_at > increment_time).all()
+            for r in tqdm(res):
+                this_id = r.id
+                author_id = r.author_id
+                if author_id not in tt_author_dict:
+                    tt_author_dict[author_id] = []
+                tt_author_dict[author_id].append(this_id)
 
+                this_text_raw = r.tt_text
+                this_text = filter_illegal_char(this_text_raw)
+                filtered_content = preprocess_text(this_text, max_sentence_length=255, min_sentence_length=6)
 
-        iterate_token = True
-        update_list = []
-        while True:
-            with get_tt_ywdata_session() as s:
-                # res = s.query(tt_ywdata_content).filter(tt_ywdata_content.created_at > increment_time).all()
+                # if len(filtered_content) > 1:
+                #     continue
 
-                # increment_time = 0
-                # increment_time = time2timeStamp("2022-12-01 00:00:00")
-                # increment_time = time2timeStamp("2022-12-20 00:00:00") # 1671465600
+                if len(filtered_content) != 1:
+                    # print("filter error:", this_id, filtered_content)
+                    continue
 
-                # res = s.query(this_content_table).filter(this_content_table.tt_type == 0)
-                # res = s.query(this_content_table).filter(this_content_table.tt_type == 0 and this_content_table.created_at < increment_time).all()
-                # res = s.query(this_content_table).filter(this_content_table.tt_type == 0  and this_content_table.created_at < increment_time and this_content_table.ana_flag == 0).limit(10000).all()
-                res = s.query(this_content_table).filter(this_content_table.tt_type == 0, this_content_table.ana_flag == 0).limit(10000).all()
+                if len(filtered_content[0]) < 6 or len(filtered_content[0]) >= 255:
+                    # print("filter so short error:", len(filtered_content[0]), this_id, filtered_content)
+                    continue
 
-                if len(res) == 0:
-                    # iterate_token = False
-                    break
-
-                for r in tqdm(res):
-                    this_id = r.id
-                    author_id = r.author_id
-
-                    update_list.append(this_id)
-                    if author_id not in tt_author_dict:
-                        tt_author_dict[author_id] = []
-                    tt_author_dict[author_id].append(this_id)
-
-                    this_text_raw = r.tt_text
-                    this_text = filter_illegal_char(this_text_raw)
-                    filtered_content = preprocess_text(this_text, max_sentence_length=255, min_sentence_length=6)
-
-                    # if len(filtered_content) > 1:
-                    #     continue
-
-                    if len(filtered_content) != 1:
-                        # print("filter error:", this_id, filtered_content)
-                        continue
-
-                    if len(filtered_content[0]) < 6 or len(filtered_content[0]) >= 255:
-                        # print("filter so short error:", len(filtered_content[0]), this_id, filtered_content)
-                        continue
-
-                    active_post_count += 1
-                    author = r.author
-                    tt_text = r.tt_text
-                    tt_type = r.tt_type
-                    clean_txt = filtered_content # 由过滤得到的文本
-                    publish_date = r.publish_date
-                    save_time = r.save_time
-                    video_id = r.video_id
-                    video_author = r.video_author
-                    video_author_id = r.video_author_id
-                    video_src_url = r.video_src_url
-                    music_playUrl = r.music_playUrl
-                    music_title = r.music_title
-                    stats_diggCount = r.stats_diggCount
-                    stats_shareCount = r.stats_shareCount
-                    stats_commentCount = r.stats_commentCount
-                    stats_playCount = r.stats_playCount
-                    created_at = r.created_at
-                    updated_at = r.updated_at
-                    ocr_result = r.ocr_result
-                    face_result = r.face_result
-                    ocr_flag = r.ocr_flag
-                    face_flag = r.face_flag
-                    task_id = r.task_id
-                    bert_score = r.bert_score
-                    cluster = r.cluster
-                    kw_result = r.kw_result
-                    kw_flag = r.kw_flag
-                    ana_flag = r.ana_flag
-                    tt_content_dict[this_id] = [author, author_id, tt_text, tt_type, clean_txt, publish_date, save_time,
-                                                video_id, video_author, video_author_id, video_src_url, music_playUrl, music_title, stats_diggCount,
-                                                stats_shareCount, stats_commentCount, stats_playCount, created_at,
-                                                updated_at, ocr_result, face_result, ocr_flag, face_flag, task_id,
-                                                bert_score, cluster,kw_result,kw_flag]
-
-            with get_tt_ywdata_session() as s:
-                s.query(this_content_table).filter(this_content_table.id.in_(update_list)).update(
-                    {"ana_flag": 1})
-            update_list = []
-
+                active_post_count += 1
+                author = r.author
+                tt_text = r.tt_text
+                tt_type = r.tt_type
+                clean_txt = filtered_content # 由过滤得到的文本
+                publish_date = r.publish_date
+                save_time = r.save_time
+                video_id = r.video_id
+                video_author = r.video_author
+                video_author_id = r.video_author_id
+                video_src_url = r.video_src_url
+                music_playUrl = r.music_playUrl
+                music_title = r.music_title
+                stats_diggCount = r.stats_diggCount
+                stats_shareCount = r.stats_shareCount
+                stats_commentCount = r.stats_commentCount
+                stats_playCount = r.stats_playCount
+                created_at = r.created_at
+                updated_at = r.updated_at
+                ocr_result = r.ocr_result
+                face_result = r.face_result
+                ocr_flag = r.ocr_flag
+                face_flag = r.face_flag
+                task_id = r.task_id
+                bert_score = r.bert_score
+                cluster = r.cluster
+                kw_result = r.kw_result
+                kw_flag = r.kw_flag
+                tt_content_dict[this_id] = [author, author_id, tt_text, tt_type, clean_txt, publish_date, save_time,
+                                            video_id, video_author, video_author_id, video_src_url, music_playUrl, music_title, stats_diggCount,
+                                            stats_shareCount, stats_commentCount, stats_playCount, created_at,
+                                            updated_at, ocr_result, face_result, ocr_flag, face_flag, task_id,
+                                            bert_score, cluster,kw_result,kw_flag]
         print("active post count:", active_post_count)
         generate_pickle(exp_dir + this_content_time_name, tt_content_dict)
         generate_pickle(exp_dir+this_author_time_name, tt_author_dict)
@@ -587,7 +560,6 @@ def update_tt_contents_increment(increment_time, off_mod=True):
             pp_score = float('%.3f' % cv[-4])
             cluster_res = cv[-3]
             with get_tt_ywdata_session() as s:
-                # s.query(this_content_table).filter(this_content_table.id==cid).update({"clean_txt": clean_text, "kw_result":kw_hit, "kw_flag":kw_flag, "bert_score": pp_score, "cluster": cluster_res, "ana_flag": 1})
                 s.query(this_content_table).filter(this_content_table.id==cid).update({"clean_txt": clean_text, "kw_result":kw_hit, "kw_flag":kw_flag, "bert_score": pp_score, "cluster": cluster_res})
 
         print("清洗之后的账号总数：", len(tt_author_content_dict))
@@ -740,7 +712,6 @@ def get_kw():
 
     return base_keywords
 
-
 def init_rating():
     global increment_time, exp_dir, this_content_table, this_author_table,\
         pp_app_api, cluster_app_api, kw_app_api,\
@@ -752,33 +723,33 @@ def init_rating():
         yh_pp_rate_threshold,yh_content_count_threshold,yh_score,seed_pp_rate_threshold,seed_content_count_threshold,seed_score,natual_score,kw_score,\
         yh_cl_score
 
-    increment_time = 0
-    # increment_time = time2timeStamp("2022-11-14 00:00:00")
+    # increment_time = 0
+    # increment_time = time2timeStamp("2022-12-27 14:00:00")
+    increment_time = time2timeStamp("2023-01-06 00:00:00")
+    print(increment_time)
     # increment_time = time2timeStamp(str(zero_yesterday()))
-    # print(str(zero_yesterday()))
+    exp_dir = './tmp_data/'
+    this_author_time_name = "tt_author_dict1226_" + str(increment_time) + ".pkl"
+    this_content_time_name = "tt_content_dict1226_" + str(increment_time) + ".pkl"
 
-    exp_dir = './cache_data/'
-    this_author_time_name = "tt_author_dict_" + str(increment_time) + ".pkl"
-    this_content_time_name = "tt_content_dict_" + str(increment_time) + ".pkl"
+    this_content_pp_time_name = "tt_content_pp_dict1226_" + str(increment_time) + ".pkl"
+    this_content_pp_cluster_time_name = "tt_content_pp_cluster_dict1226_" + str(increment_time) + ".pkl"
+    this_content_pp_cl_kw_time_name = "tt_content_pp_cl_kw_dict1226_" + str(increment_time) + ".pkl"
 
-    this_content_pp_time_name = "tt_content_pp_dict_" + str(increment_time) + ".pkl"
-    this_content_pp_cluster_time_name = "tt_content_pp_cluster_dict_" + str(increment_time) + ".pkl"
-    this_content_pp_cl_kw_time_name = "tt_content_pp_cl_kw_dict_" + str(increment_time) + ".pkl"
-
-    this_author_content_time_name = "tt_author_content_dict_" + str(increment_time) + ".pkl"
-    this_content_table = tt_ywdata_content
-    this_author_table = tt_ywdata_author_analysed
+    this_author_content_time_name = "tt_author_content_dict1226_" + str(increment_time) + ".pkl"
+    this_content_table = tt_ywdata_content1220
+    this_author_table = tt_ywdata_author_analysed1220
 
 
-    # nlp_api_ip = "10.96.130.66"
+    nlp_api_ip = "10.96.130.66"
 
-    pp_app_api = "http://192.168.0.178:8199/predict"
-    cluster_app_api = "http://192.168.0.178:9099/predict"
-    kw_app_api = "http://192.168.0.178:9098/predict"
+    # pp_app_api = "http://192.168.0.178:8199/predict"
+    # cluster_app_api = "http://192.168.0.178:9099/predict"
+    # kw_app_api = "http://192.168.0.178:9098/predict"
 
-    # pp_app_api = "http://"+nlp_api_ip+":7199/predict"
-    # cluster_app_api = "http://"+nlp_api_ip+":7099/predict"
-    # kw_app_api = "http://"+nlp_api_ip+":9098/predict"
+    pp_app_api = "http://"+nlp_api_ip+":7199/predict"
+    cluster_app_api = "http://"+nlp_api_ip+":7099/predict"
+    kw_app_api = "http://"+nlp_api_ip+":9098/predict"
 
     bad_cluster_set = [38, 45, 16, 28]
 
@@ -807,13 +778,13 @@ def rating_accounts():
 
     init_rating()
 
-    off_mode_token = False
+    off_mode_token = True
     '''
     按时间戳读取数据，主要是content表
     '''
     tt_content_dict, tt_author_dict = read_tt_author_post_contents_increment(increment_time, off_mod=off_mode_token)
 
-    off_mode_token = False
+    # off_mode_token = False
     '''
     获取每条content的立场分数
     '''
