@@ -85,6 +85,49 @@ def read_tt_author_contents_increment(increment_time, off_mod=True):
     return tt_content_dict, tt_author_dict
 
 
+def read_post_inventory(rargs, off_mod=True):
+    if off_mod == True:
+        tt_author_dict = load_pickle(rargs.save_dir + rargs.author_time_name)
+        tt_content_dict = load_pickle(rargs.save_dir + rargs.content_time_name)
+    else:
+        tt_author_dict = {}
+        tt_content_dict = {}
+        active_post_count =  0
+
+        with get_tt_ywdata_session() as s:
+            res = s.query(rargs.content_table).filter(rargs.content_table.tt_type == 0, rargs.content_table.ana_flag == 1).all()
+            for r in tqdm(res):
+                this_id = r.id
+                author_id = r.author_id
+
+                if author_id not in tt_author_dict:
+                    tt_author_dict[author_id] = []
+                tt_author_dict[author_id].append(this_id)
+
+                this_text_raw = r.tt_text
+                this_text = filter_illegal_char(this_text_raw)
+                filtered_content = preprocess_text(this_text, max_sentence_length=512, min_sentence_length=1)
+
+                if len(filtered_content) != 1:
+                    continue
+
+                active_post_count += 1
+                author = r.author
+                tt_text = r.tt_text
+                clean_txt = filtered_content[0] # 由过滤得到的文本
+                bert_score = r.bert_score
+                kw_result = r.kw_result
+                kw_flag = r.kw_flag
+                ana_flag = r.ana_flag
+                tt_content_dict[this_id] = [author, author_id, tt_text, clean_txt, bert_score, kw_result,kw_flag]
+
+
+        print("active post count:", active_post_count)
+        generate_pickle(rargs.save_dir + rargs.author_time_name, tt_author_dict)
+        generate_pickle(rargs.save_dir + rargs.content_time_name, tt_content_dict)
+
+    return tt_author_dict, tt_content_dict
+
 
 '''
 先读数据
@@ -391,6 +434,88 @@ def pre_label_keywords(rargs, tt_content_dict, off_mod=True):
 #     return seed_author_dict
 
 
+def insert_tt_author_analysed_inventory(rargs, off_mod=True):
+    if off_mod == True:
+        # tt_content_dict = load_pickle(exp_dir + this_content_time_name)
+        # seed_author_dict = load_pickle(exp_dir + this_seed_author_time_name)
+        pass
+    else:
+        # tt_content_dict = load_pickle(exp_dir + this_content_time_name)
+        tt_author_dict = load_pickle(rargs.save_dir + rargs.author_time_name)
+        tt_content_dict = load_pickle(rargs.save_dir + rargs.content_time_name)
+        seed_author_dict = {}
+        yh_author_dict = {}
+
+        kw_amend_list = []
+        kw_amend_list.append("中华民国")
+        kw_amend_list.append("小熊维尼")
+        kw_amend_list.append("包子&毛")
+        kw_amend_list.append("中国&秘密")
+        kw_amend_list.append("屠杀&四")
+        kw_amend_list.append("习近平&江泽民")
+        kw_amend_list.append("中国&消灭")
+        kw_amend_list.append("包子&毒")
+        kw_amend_list.append("中国&地狱")
+        kw_amend_list.append("包子&杀")
+        kw_amend_list.append("习天天")
+
+        for i, (aid, av) in enumerate(tqdm(tt_author_dict.items())):
+
+            # [author, author_id, tt_text, clean_txt, bert_score, kw_result, kw_flag]
+            sample_content = av[list(av.keys())[0]]
+            author = sample_content[0]
+            author_id = sample_content[1]
+            tt_number = len(tt_author_dict[aid])
+            tt_zh_number = len(av)
+            # bert_bad_number = sample_content[0]
+            save_time = current_timestamp()
+
+            base_kw_list = get_kw()
+            base_keyword_processor = KeywordProcessor()
+            base_keyword_processor.add_keywords_from_list(list(base_kw_list))
+
+            bert_bad_number = 0
+            for j, (cid, cv) in enumerate(av.items()):
+                this_text = cv[3]
+                base_keywords_found = base_keyword_processor.extract_keywords(this_text)
+
+                this_pp_score = cv[-4]
+                if (this_pp_score > rargs.pp_threshold01 and base_keywords_found) or this_pp_score > rargs.pp_threshold02:
+                    bert_bad_number += 1
+
+            # cluster_bad_number = 0
+            # for j, (cid, cv) in enumerate(av.items()):
+            #     this_cluster = cv[-3]
+            #     if this_cluster in rargs.bad_cluster_set:
+            #         cluster_bad_number += 1
+
+            kw_bad_number = 0
+            for j, (cid, cv) in enumerate(av.items()):
+                this_kw_label = cv[-1]
+                this_kw_result = cv[-2]
+                if this_kw_label == 1 and this_kw_result not in kw_amend_list:
+                    kw_bad_number += 1
+
+            this_pp_rate = bert_bad_number / tt_zh_number
+
+            im_score = 11
+
+            if kw_bad_number >= 5 and this_pp_rate > 0.5:
+                with get_tt_ywdata_session() as s:
+                    s.add(rargs.author_table(author=author, author_id=author_id, tt_number=tt_number, tt_zh_number=tt_zh_number, bert_bad_number=bert_bad_number, keyword_bad_number=kw_bad_number, save_time=save_time, score=im_score))
+                    s.query(rargs.author_table).filter(rargs.author_table.author_id == author_id).update(
+                        {"score": im_score})
+                seed_author_dict[author_id] = [author, author_id, tt_number, tt_zh_number, bert_bad_number, kw_bad_number, save_time,
+                                               im_score]
+                continue
+
+    # generate_pickle(exp_dir + this_seed_author_time_name, seed_author_dict)
+    print("seed_author_dict count", len(seed_author_dict))
+    print("yh_author_dict count", len(yh_author_dict))
+
+    return seed_author_dict
+
+
 def get_kw():
     base_kw_file = "base_kw_file"
     base_kw_f = open("./data/" + base_kw_file, "r")
@@ -448,11 +573,22 @@ def rating_accounts(rargs):
     # # '''
     # seed_author_dict = insert_tt_author_analysed_increment(increment_time, off_mod=off_mode_token)
 
+def pure_rating_accounts(rargs):
+    off_mode_token = True
+    '''
+    按时间戳读取数据，主要是content表
+    '''
+    tt_author_dict, tt_content_dict  = read_post_inventory(rargs, off_mod=off_mode_token)
+
+    off_mode_token = False
+    seed_author_dict = insert_tt_author_analysed_inventory(rargs, off_mod=off_mode_token)
+
 
 if __name__ == '__main__':
     rargs = RatingArgs()
     rargs.init_h_rating_args()
 
 
-    rating_accounts(rargs)
+    # rating_accounts(rargs)
+    pure_rating_accounts(rargs)
     pass
